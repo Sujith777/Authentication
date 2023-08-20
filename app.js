@@ -3,6 +3,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import ejs from "ejs";
 import mongoose from "mongoose";
+import encrypt from "mongoose-encryption";
 
 const app = express();
 const port = 3000;
@@ -13,9 +14,16 @@ app.use(express.static("public"));
 
 mongoose.connect("mongodb://127.0.0.1:27017/userDB");
 
-const userSchema = mongoose.Schema({
+const userSchema = new mongoose.Schema({
   email: String,
   password: String,
+});
+
+const secret = "Thisisourlittlesecret.";
+
+userSchema.plugin(encrypt, {
+  secret: secret,
+  encryptedFields: ["password"],
 });
 
 const User = mongoose.model("User", userSchema);
@@ -52,7 +60,7 @@ app.post("/register", (req, res) => {
 app.post("/login", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
-  User.findOne({ email: username, password: password })
+  User.find({ email: username, password: password })
     .catch((err) => {
       if (err) {
         console.log(err);
