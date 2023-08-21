@@ -3,8 +3,8 @@ import express from "express";
 import bodyParser from "body-parser";
 import ejs from "ejs";
 import mongoose from "mongoose";
-import encrypt from "mongoose-encryption";
-import md5 from "md5";
+import bcrypt, { hash } from "bcrypt";
+const saltRounds = 10;
 
 const app = express();
 const port = 3000;
@@ -35,26 +35,28 @@ app.get("/login", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  const newUser = new User({
-    email: req.body.username,
-    password: md5(req.body.password),
-  });
-  newUser
-    .save()
-    .catch((err) => {
-      if (err) {
-        console.log(err);
-      }
-    })
-    .then(() => {
-      res.render("secrets");
+  bcrypt.hash(req.body.password, saltRounds).then((hash) => {
+    const newUser = new User({
+      email: req.body.username,
+      password: hash,
     });
+    newUser
+      .save()
+      .catch((err) => {
+        if (err) {
+          console.log(err);
+        }
+      })
+      .then(() => {
+        res.render("secrets");
+      });
+  });
 });
 
 app.post("/login", (req, res) => {
   const username = req.body.username;
-  const password = md5(req.body.password);
-  User.findOne({ email: username, password: password })
+  const password = req.body.password;
+  User.findOne({ email: username })
     .catch((err) => {
       if (err) {
         console.log(err);
@@ -62,9 +64,11 @@ app.post("/login", (req, res) => {
     })
     .then((foundUser) => {
       if (foundUser) {
-        if (foundUser.password === password) {
-          res.render("secrets");
-        }
+        bcrypt.compare(password, foundUser.password).then((result) => {
+          if (result === true) {
+            res.render("secrets");
+          }
+        });
       } else {
         console.log("User not registered");
       }
